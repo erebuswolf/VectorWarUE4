@@ -4,6 +4,7 @@
 #include "VectorWarPlayerController.h"
 #include "VectorWar/GameStateInterface.h"
 #include "include/ggponet.h"
+#include "include/connection_manager.h"
 #include "GGPOGameInstance.h"
 #include "Runtime/Engine/Classes/Kismet/GameplayStatics.h"
 
@@ -334,6 +335,7 @@ bool AVWGameStateBase::TryStartGGPOPlayerSession(
 
         LocalPort = NetworkAddresses->GetLocalPort();
 
+		char OutAddress[32];
         int32 i;
         for (i = 0; i < NumPlayers; i++)
         {
@@ -346,18 +348,26 @@ bool AVWGameStateBase::TryStartGGPOPlayerSession(
                 Players[i].type = EGGPOPlayerType::LOCAL;
                 continue;
             }
-
             Players[i].type = EGGPOPlayerType::REMOTE;
-            Players[i].u.remote.port = (uint16)NetworkAddresses->GetAddress(i)->GetPort();
-            NetworkAddresses->GetAddress(i)->GetIpAddress(Players[i].u.remote.ip_address);
+
+			NetworkAddresses->GetAddress(i)->GetIpAddress(OutAddress);
+
+			Players[i].u.remote.connection_id = 
+				ConnectionManager.AddConnection(
+					OutAddress, 
+					(uint16)NetworkAddresses->GetAddress(i)->GetPort());
         }
         // these are spectators...
         while (Offset < NetworkAddresses->NumPlayers()) {
             Offset++;
 
             Players[i].type = EGGPOPlayerType::SPECTATOR;
-            Players[i].u.remote.port = (uint16)NetworkAddresses->GetAddress(i)->GetPort();
-            NetworkAddresses->GetAddress(i)->GetIpAddress(Players[i].u.remote.ip_address);
+
+			NetworkAddresses->GetAddress(i)->GetIpAddress(OutAddress);
+
+			Players[i].u.remote.connection_id = ConnectionManager.AddConnection(
+				OutAddress,
+				(uint16)NetworkAddresses->GetAddress(i)->GetPort());
 
             i++;
             NumSpectators++;
@@ -404,11 +414,13 @@ void AVWGameStateBase::VectorWar_Init(uint16 localport, int32 num_players, GGPOP
 
     // Fill in a ggpo callbacks structure to pass to start_session.
     GGPOSessionCallbacks cb = CreateCallbacks();
+	
+	ConnectionManager.Init(localport);
 
 #if defined(SYNC_TEST)
     result = GGPONet::ggpo_start_synctest(&ggpo, &cb, "vectorwar", num_players, sizeof(int), 1);
 #else
-    result = GGPONet::ggpo_start_session(&ggpo, &cb, "vectorwar", num_players, sizeof(int), localport);
+    result = GGPONet::ggpo_start_session(&ggpo, &cb, &ConnectionManager,"vectorwar", num_players, sizeof(int));
 #endif
 
     // automatically disconnect clients after 3000 ms and start our count-down timer
@@ -447,7 +459,9 @@ void AVWGameStateBase::VectorWar_InitSpectator(uint16 localport, int32 num_playe
     // Fill in a ggpo callbacks structure to pass to start_session.
     GGPOSessionCallbacks cb = CreateCallbacks();
 
-    result = GGPONet::ggpo_start_spectating(&ggpo, &cb, "vectorwar", num_players, sizeof(int), localport, host_ip, host_port);
+	int id = ConnectionManager.AddConnection(host_ip, localport);
+
+    result = GGPONet::ggpo_start_spectating(&ggpo, &cb, &ConnectionManager, "vectorwar", num_players, sizeof(int), id);
 }
 
 GGPOSessionCallbacks AVWGameStateBase::CreateCallbacks()

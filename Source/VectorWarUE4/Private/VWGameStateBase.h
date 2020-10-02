@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "VectorWar/vectorwar.h"
+#include "include/connection_manager.h"
 #include "GameFramework/GameStateBase.h"
 #include "VWGameStateBase.generated.h"
 
@@ -40,6 +41,32 @@ struct FNetworkGraphPlayer {
 	TArray<FNetworkGraphData> PlayerData;
 };
 
+class MyConnection : public ConnectionManager {
+public:
+	MyConnection() {}
+
+	virtual ~MyConnection() {}
+
+	/**
+	* SendTo is a sendto upd style interface
+	*
+	* This function is expected to function similar to a standard upd
+	* socket style send.
+	*/
+	virtual int SendTo(char* buffer, int len, int flags, int connection_id) { return 0; }
+
+	/**
+	* RecvFrom is a recvfrom upd style interface
+	*
+	* This function is expected to function similar to a standard upd
+	* socket style recvfrom. Return values are as follows:
+	* greater than 0 values indicate data length.
+	* 0 indicates a disconnect.
+	* -1 indicates no data or some other error.
+	*/
+	virtual int RecvFrom(char* buffer, int len, int flags, int* connection_id) { return 0; }
+};
+
 /**
  *
  */
@@ -57,6 +84,8 @@ private:
 	bool bSessionStarted;
 
 	float ElapsedTime;
+
+	UDPConnectionManager ConnectionManager;
 
 	TArray<FNetworkGraphPlayer> NetworkGraphData;
 
