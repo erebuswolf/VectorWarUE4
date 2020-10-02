@@ -1,3 +1,4 @@
 [submodule "Plugins/GGPOUE4"]
 	path = Plugins/GGPOUE4
-	url = https://github.com/BwdYeti/GGPOUE4.git
+	url = https://github.com/erebuswolf/ggpo.git
+	branch = UE4Integration
